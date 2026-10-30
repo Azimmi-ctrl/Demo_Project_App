@@ -2,25 +2,31 @@
 # Project Requirement Document (PRD)
 
 ## Project Title
-Development of a Smart Expense Tracker with Machine Learning-Based Monthly Spending Prediction for University Students
+Development of an E-wallet with Smart Expense Tracker and Machine Learning-Based Monthly Spending Prediction for University Students
 
 ## 1. Project Overview
-The Smart Expense Tracker is a web-based application designed to help university students manage their personal expenses. The system allows users to record expenses, monitor monthly budgets, view spending reports, and predict their total spending for the following month using machine learning.
+Cash-ly is an E-Wallet and Smart Expense Tracker web-based application designed to help university students manage their personal expenses. The system allows users to record expenses, monitor monthly budgets,saving account that have interest anually ,view spending reports, receive and transfer money, link account with their university by using student portal, voucher that available on the university,special coins features that used to pay things in university and predict their total spending for the following month using machine learning.
 
 ## 2. Background
-University students need to manage expenses such as food, transportation, education, accommodation, and entertainment. Some students may struggle to track their spending and plan their monthly budgets. A smart expense tracker can help students understand their spending habits and make better financial decisions.
+University students need to manage expenses such as food, transportation, education, accommodation, and entertainment. Some students may struggle to track their spending and plan their monthly budgets. A smart expense tracker can help students understand their spending habit and make better financial decisions.
 
 ## 3. Problem Statement
 - Students may find it difficult to track daily expenses when relying on memory or manual records.
 - Poor expense management may cause students to overspend or exceed their monthly budgets.
 - Basic expense-tracking systems may focus on past spending without predicting future expenses.
 - Students may need a simple system that combines expense tracking, budget monitoring, and spending prediction.
+- Students is not interested in saving their money.
+- International students may have difficulty in making new bank-account.
+- Merchandise and meals in university slightly pricy for students budget
 
 ## 4. Project Objectives
-- To identify the requirements for a student expense-tracking system.
-- To develop and compare machine learning models for monthly spending prediction.
-- To develop a web application for expense recording, budget monitoring, and spending reports.
-- To evaluate the prediction performance and functionality of the system.
+- To design and develop a mobile-based simulated e-wallet for university students to manage campus payments and fund transfers.
+- To integrate expense tracking, monthly budgeting, financial reports, and machine learning-based spending prediction.
+- To develop a simulated savings module that calculates projected annual interest.
+- To implement a campus rewards system with redeemable vouchers and loyalty coins.
+- To evaluate the application's functionality, usability, transaction accuracy, and spending prediction performance.
+- To help international students make a new e-wallet account.
+- To help students buy their university merchandise and meals with lower price.
 
 ## 5. Target Users
 The primary target users are university students who want to manage their daily expenses and monthly budgets. The system is designed for students who prefer a simple way to record spending and monitor their financial situation.

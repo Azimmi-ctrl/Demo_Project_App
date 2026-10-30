@@ -1,738 +1,586 @@
 
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const SmartExpenseApp());
-}
+void main() => runApp(const CashlyCampusApp());
 
-const royalBlue = Color(0xFF2563EB);
-const navyBlue = Color(0xFF0F172A);
-const lightBackground = Color(0xFFF8FAFC);
+const blue = Color(0xFF2563EB);
+const navy = Color(0xFF0F172A);
+const bg = Color(0xFFF8FAFC);
 
-String money(double value) => 'RM ${value.toStringAsFixed(2)}';
+String rm(double value) => 'RM ${value.toStringAsFixed(2)}';
 
-String monthName(int month) {
-  const names = [
-    'January', 'February', 'March', 'April',
-    'May', 'June', 'July', 'August',
-    'September', 'October', 'November', 'December'
-  ];
-  return names[month - 1];
-}
-
-class Expense {
-  final int id;
-  final double amount;
+class DemoTransaction {
+  final String title;
   final String category;
-  final String description;
+  final double amount;
   final DateTime date;
+  final bool isExpense;
 
-  Expense({
-    required this.id,
-    required this.amount,
+  DemoTransaction({
+    required this.title,
     required this.category,
-    required this.description,
+    required this.amount,
     required this.date,
+    required this.isExpense,
   });
 }
 
-class SmartExpenseApp extends StatelessWidget {
-  const SmartExpenseApp({super.key});
+class CashlyCampusApp extends StatelessWidget {
+  const CashlyCampusApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Smart Expense Tracker',
+      title: 'Cashly Campus',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: lightBackground,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: royalBlue,
-          surface: Colors.white,
-        ),
+        scaffoldBackgroundColor: bg,
+        colorScheme: ColorScheme.fromSeed(seedColor: blue),
         appBarTheme: const AppBarTheme(
-          backgroundColor: lightBackground,
-          foregroundColor: navyBlue,
-          centerTitle: false,
+          backgroundColor: bg,
+          foregroundColor: navy,
         ),
       ),
-      home: const MainScreen(),
+      home: const CampusMainScreen(),
     );
   }
 }
 
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+class CampusMainScreen extends StatefulWidget {
+  const CampusMainScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<CampusMainScreen> createState() => _CampusMainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
-  int selectedIndex = 0;
-  int nextId = 1;
+class _CampusMainScreenState extends State<CampusMainScreen> {
+  int tab = 0;
+  double wallet = 500;
+  double savings = 100;
   double monthlyBudget = 1000;
-  final List<Expense> expenses = [];
+  int coins = 120;
+  bool voucherClaimed = false;
+  bool voucherUsed = false;
+  final transactions = <DemoTransaction>[];
 
-  double get monthlyTotal {
+  double get monthlySpending {
     final now = DateTime.now();
-    return expenses
-        .where((e) =>
-            e.date.month == now.month &&
-            e.date.year == now.year)
-        .fold(0.0, (sum, e) => sum + e.amount);
+    return transactions
+        .where((t) =>
+            t.isExpense &&
+            t.date.year == now.year &&
+            t.date.month == now.month)
+        .fold(0.0, (sum, t) => sum + t.amount);
   }
 
-  double get remaining => monthlyBudget - monthlyTotal;
+  void message(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text)),
+    );
+  }
 
-  double get percentage => monthlyBudget > 0
-      ? monthlyTotal / monthlyBudget
-      : 0;
-
-  void addExpense(
-    double amount,
+  void record(
+    String title,
     String category,
-    String description,
-    DateTime date,
-  ) {
-    setState(() {
-      expenses.add(Expense(
-        id: nextId++,
-        amount: amount,
+    double amount, {
+    bool expense = false,
+  }) {
+    transactions.insert(
+      0,
+      DemoTransaction(
+        title: title,
         category: category,
-        description: description,
-        date: date,
-      ));
-    });
-  }
-
-  void deleteExpense(int id) {
-    setState(() {
-      expenses.removeWhere((e) => e.id == id);
-    });
-  }
-
-  void updateBudget(double value) {
-    setState(() => monthlyBudget = value);
-  }
-
-  void openAddExpense() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AddExpenseScreen(
-          onSave: addExpense,
-        ),
+        amount: amount,
+        date: DateTime.now(),
+        isExpense: expense,
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final pages = [
-      HomePage(
-        total: monthlyTotal,
-        budget: monthlyBudget,
-        expenses: expenses,
-        onAdd: openAddExpense,
-      ),
-      ExpensesPage(
-        expenses: expenses,
-        onAdd: openAddExpense,
-        onDelete: deleteExpense,
-      ),
-      BudgetPage(
-        total: monthlyTotal,
-        budget: monthlyBudget,
-        onUpdate: updateBudget,
-      ),
-      ReportsPage(expenses: expenses),
-      const PredictionPage(),
-    ];
-
-    return Scaffold(
-      body: SafeArea(child: pages[selectedIndex]),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (index) {
-          setState(() => selectedIndex = index);
-        },
-        indicatorColor: royalBlue.withValues(alpha: 0.12),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home, color: royalBlue),
-            label: 'Home',
+  Future<void> enterAmount({
+    required String title,
+    required void Function(double) onConfirm,
+  }) async {
+    final controller = TextEditingController();
+    final amount = await showDialog<double>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(
+            decimal: true,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long, color: royalBlue),
-            label: 'Expenses',
+          decoration: const InputDecoration(
+            prefixText: 'RM ',
+            labelText: 'Amount',
+            border: OutlineInputBorder(),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(
-              Icons.account_balance_wallet,
-              color: royalBlue,
-            ),
-            label: 'Budget',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart, color: royalBlue),
-            label: 'Reports',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.auto_graph_outlined),
-            selectedIcon: Icon(Icons.auto_graph, color: royalBlue),
-            label: 'Predict',
+          FilledButton(
+            onPressed: () {
+              final value = double.tryParse(controller.text);
+              if (value == null ||
+                  !value.isFinite ||
+                  value <= 0 ||
+                  (value * 100 - (value * 100).round()).abs() >
+                      0.000001) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Enter a valid amount with at most 2 decimals.',
+                    ),
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Confirm'),
           ),
         ],
       ),
     );
+    controller.dispose();
+    if (amount != null && mounted) onConfirm(amount);
   }
-}
 
-class SectionTitle extends StatelessWidget {
-  final String title;
-
-  const SectionTitle(this.title, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 19,
-          fontWeight: FontWeight.bold,
-          color: navyBlue,
-        ),
-      ),
+  void topUp() {
+    enterAmount(
+      title: 'Add Demo Money',
+      onConfirm: (amount) {
+        setState(() {
+          wallet += amount;
+          record('Demo Top-up', 'Top-up', amount);
+        });
+        message('${rm(amount)} added to demo wallet.');
+      },
     );
   }
-}
 
-class InfoCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
+  void transfer() {
+    final recipient = TextEditingController();
+    final amountController = TextEditingController();
 
-  const InfoCard({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.icon,
-    this.color = royalBlue,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 27),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              style: const TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 5),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.bold,
-                  color: navyBlue,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class HomePage extends StatelessWidget {
-  final double total;
-  final double budget;
-  final List<Expense> expenses;
-  final VoidCallback onAdd;
-
-  const HomePage({
-    super.key,
-    required this.total,
-    required this.budget,
-    required this.expenses,
-    required this.onAdd,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final current = expenses.where((e) =>
-        e.date.month == now.month &&
-        e.date.year == now.year).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
-
-    final ratio = budget > 0 ? total / budget : 0.0;
-
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        const Text(
-          'Hello, Student!',
-          style: TextStyle(
-            fontSize: 27,
-            fontWeight: FontWeight.bold,
-            color: navyBlue,
-          ),
-        ),
-        const Text(
-          'Manage Today. Predict Tomorrow.',
-          style: TextStyle(color: Colors.grey),
-        ),
-        const SizedBox(height: 22),
-        Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: royalBlue,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${monthName(now.month)} ${now.year} Spending',
-                style: const TextStyle(color: Colors.white70),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                money(total),
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 15),
-              LinearProgressIndicator(
-                value: ratio.clamp(0.0, 1.0),
-                minHeight: 9,
-                borderRadius: BorderRadius.circular(10),
-                backgroundColor: Colors.white24,
-                color: ratio >= 0.9
-                    ? Colors.redAccent
-                    : ratio >= 0.7
-                        ? Colors.orangeAccent
-                        : Colors.greenAccent,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                '${(ratio * 100).toStringAsFixed(1)}% of budget used',
-                style: const TextStyle(color: Colors.white),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            Expanded(
-              child: InfoCard(
-                label: 'Monthly Budget',
-                value: money(budget),
-                icon: Icons.account_balance_wallet,
-              ),
-            ),
-            Expanded(
-              child: InfoCard(
-                label: 'Remaining',
-                value: money(budget - total),
-                icon: Icons.savings,
-                color: budget - total < 0
-                    ? Colors.red
-                    : Colors.green,
-              ),
-            ),
-          ],
-        ),
-        if (ratio >= 0.7) ...[
-          const SizedBox(height: 12),
-          Card(
-            color: Colors.orange.shade50,
-            child: Padding(
-              padding: const EdgeInsets.all(15),
-              child: Text(
-                ratio >= 1
-                    ? 'Warning: You have exceeded your monthly budget!'
-                    : 'Warning: You are approaching your monthly budget limit.',
-                style: const TextStyle(color: navyBlue),
-              ),
-            ),
-          ),
-        ],
-        const SizedBox(height: 22),
-        FilledButton.icon(
-          onPressed: onAdd,
-          icon: const Icon(Icons.add),
-          label: const Text('Add New Expense'),
-          style: FilledButton.styleFrom(
-            backgroundColor: royalBlue,
-            padding: const EdgeInsets.all(15),
-          ),
-        ),
-        const SizedBox(height: 25),
-        const SectionTitle('Recent Transactions'),
-        if (current.isEmpty)
-          const Text(
-            'No expenses recorded this month.',
-            style: TextStyle(color: Colors.grey),
-          ),
-        ...current.take(5).map(
-          (e) => ExpenseTile(expense: e),
-        ),
-      ],
-    );
-  }
-}
-
-class ExpenseTile extends StatelessWidget {
-  final Expense expense;
-  final VoidCallback? onDelete;
-
-  const ExpenseTile({
-    super.key,
-    required this.expense,
-    this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: Colors.white,
-      elevation: 0,
-      child: ListTile(
-        leading: const CircleAvatar(
-          backgroundColor: Color(0xFFDBEAFE),
-          child: Icon(Icons.receipt, color: royalBlue),
-        ),
-        title: Text(expense.category),
-        subtitle: Text(
-          '${expense.description.isEmpty ? "No description" : expense.description} • '
-          '${expense.date.day}/${expense.date.month}/${expense.date.year}',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Row(
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Demo Fund Transfer'),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              money(expense.amount),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: navyBlue,
+            TextField(
+              controller: recipient,
+              decoration: const InputDecoration(
+                labelText: 'Recipient student ID',
               ),
             ),
-            if (onDelete != null)
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                onPressed: onDelete,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class ExpensesPage extends StatelessWidget {
-  final List<Expense> expenses;
-  final VoidCallback onAdd;
-  final ValueChanged<int> onDelete;
-
-  const ExpensesPage({
-    super.key,
-    required this.expenses,
-    required this.onAdd,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final sorted = [...expenses]
-      ..sort((a, b) => b.date.compareTo(a.date));
-
-    return Scaffold(
-      backgroundColor: lightBackground,
-      appBar: AppBar(title: const Text('My Expenses')),
-      body: sorted.isEmpty
-          ? const Center(
-              child: Text('No expenses yet. Add your first expense!'),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: sorted.length,
-              itemBuilder: (context, index) {
-                final expense = sorted[index];
-                return ExpenseTile(
-                  expense: expense,
-                  onDelete: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (dialogContext) => AlertDialog(
-                        title: const Text('Delete expense?'),
-                        content: const Text(
-                          'This action cannot be undone.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.pop(dialogContext, false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.pop(dialogContext, true),
-                            child: const Text('Delete'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirmed == true) {
-                      onDelete(expense.id);
-                    }
-                  },
-                );
-              },
-            ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: onAdd,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Expense'),
-      ),
-    );
-  }
-}
-
-class AddExpenseScreen extends StatefulWidget {
-  final void Function(
-    double amount,
-    String category,
-    String description,
-    DateTime date,
-  ) onSave;
-
-  const AddExpenseScreen({
-    super.key,
-    required this.onSave,
-  });
-
-  @override
-  State<AddExpenseScreen> createState() => _AddExpenseScreenState();
-}
-
-class _AddExpenseScreenState extends State<AddExpenseScreen> {
-  final formKey = GlobalKey<FormState>();
-  final amountController = TextEditingController();
-  final descriptionController = TextEditingController();
-
-  final categories = [
-    'Food & Drinks',
-    'Transportation',
-    'Education',
-    'Shopping',
-    'Entertainment',
-    'Accommodation',
-    'Health',
-    'Bills',
-    'Others',
-  ];
-
-  String category = 'Food & Drinks';
-  DateTime selectedDate = DateTime.now();
-
-  @override
-  void dispose() {
-    amountController.dispose();
-    descriptionController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Add Expense')),
-      body: Form(
-        key: formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            TextFormField(
+            TextField(
               controller: amountController,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
               decoration: const InputDecoration(
                 labelText: 'Amount (RM)',
-                prefixIcon: Icon(Icons.payments),
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) {
-                final amount = double.tryParse(value ?? '');
-                if (amount == null ||
-                    !amount.isFinite ||
-                    amount <= 0) {
-                  return 'Enter a valid amount greater than zero';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 18),
-            DropdownButtonFormField<String>(
-              initialValue: category,
-              decoration: const InputDecoration(
-                labelText: 'Category',
-                border: OutlineInputBorder(),
-              ),
-              items: categories
-                  .map((c) => DropdownMenuItem(
-                        value: c,
-                        child: Text(c),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => category = value);
-                }
-              },
-            ),
-            const SizedBox(height: 18),
-            TextFormField(
-              controller: descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description (Optional)',
-                border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 18),
-            ListTile(
-              title: const Text('Expense Date'),
-              subtitle: Text(
-                '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
-              ),
-              trailing: const Icon(Icons.calendar_month),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: selectedDate,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime.now(),
-                );
-                if (picked != null) {
-                  setState(() => selectedDate = picked);
-                }
-              },
-            ),
-            const SizedBox(height: 25),
-            FilledButton(
-              onPressed: () {
-                if (!formKey.currentState!.validate()) return;
-
-                widget.onSave(
-                  double.parse(amountController.text),
-                  category,
-                  descriptionController.text.trim(),
-                  selectedDate,
-                );
-
-                Navigator.pop(context);
-              },
-              child: const Text('Save Expense'),
+            const SizedBox(height: 10),
+            const Text(
+              'Demo only: no real recipient is credited.',
+              style: TextStyle(fontSize: 12),
             ),
           ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = double.tryParse(amountController.text);
+              final student = recipient.text.trim();
+              if (student.isEmpty ||
+                  value == null ||
+                  !value.isFinite ||
+                  value <= 0 ||
+                  (value * 100 - (value * 100).round()).abs() >
+                      0.000001) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Enter valid recipient and amount.'),
+                  ),
+                );
+                return;
+              }
+              if (value > wallet) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Insufficient wallet balance.'),
+                  ),
+                );
+                return;
+              }
+              setState(() {
+                wallet -= value;
+                record('Transfer to $student', 'Transfer', value);
+              });
+              Navigator.pop(dialogContext);
+              message('Demo transfer recorded: ${rm(value)}.');
+            },
+            child: const Text('Send Demo Money'),
+          ),
+        ],
+      ),
+    ).then((_) {
+      recipient.dispose();
+      amountController.dispose();
+    });
+  }
+
+  void moveSavings(bool deposit) {
+    enterAmount(
+      title: deposit ? 'Deposit to Savings' : 'Withdraw Savings',
+      onConfirm: (amount) {
+        if (deposit && amount > wallet) {
+          message('Insufficient wallet balance.');
+          return;
+        }
+        if (!deposit && amount > savings) {
+          message('Insufficient savings balance.');
+          return;
+        }
+        setState(() {
+          if (deposit) {
+            wallet -= amount;
+            savings += amount;
+          } else {
+            savings -= amount;
+            wallet += amount;
+          }
+          record(
+            deposit ? 'Savings Deposit' : 'Savings Withdrawal',
+            'Savings',
+            amount,
+          );
+        });
+        message('Savings updated successfully.');
+      },
+    );
+  }
+
+  void buy(String product, double price) {
+    if (wallet < price) {
+      message('Insufficient wallet balance.');
+      return;
+    }
+
+    setState(() {
+      wallet -= price;
+      final earned = (price / 5).floor();
+      coins += earned;
+      record(
+        product,
+        product == 'Campus Meal' ? 'Food & Drinks' : 'Shopping',
+        price,
+        expense: true,
+      );
+    });
+    message('Demo purchase successful! Campus Coins earned.');
+  }
+
+  void redeemCoins() {
+    if (coins < 100) {
+      message('You need at least 100 coins.');
+      return;
+    }
+    setState(() {
+      coins -= 100;
+      // Demonstration discount credit, not real money.
+      wallet += 1;
+      record('Coin Reward Credit', 'Reward', 1);
+    });
+    message('100 coins redeemed for RM1 demo wallet credit.');
+  }
+
+  Widget tile(
+    IconData icon,
+    String title,
+    String subtitle, {
+    VoidCallback? onTap,
+  }) {
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: const Color(0xFFDBEAFE),
+          child: Icon(icon, color: blue),
+        ),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: onTap == null
+            ? null
+            : const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  Widget action(
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+  ) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 26,
+                backgroundColor: const Color(0xFFDBEAFE),
+                child: Icon(icon, color: blue),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-}
 
-class BudgetPage extends StatefulWidget {
-  final double total;
-  final double budget;
-  final ValueChanged<double> onUpdate;
+  Widget heading(String text) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.bold,
+            color: navy,
+          ),
+        ),
+      );
 
-  const BudgetPage({
-    super.key,
-    required this.total,
-    required this.budget,
-    required this.onUpdate,
-  });
-
-  @override
-  State<BudgetPage> createState() => _BudgetPageState();
-}
-
-class _BudgetPageState extends State<BudgetPage> {
-  final controller = TextEditingController();
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
+  Widget balanceCard(
+    String label,
+    String value, {
+    IconData icon = Icons.account_balance_wallet,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: blue,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.white),
+          const SizedBox(height: 12),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 30,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'SIMULATED FUNDS • NOT REAL MONEY',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 10,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final ratio = widget.budget > 0
-        ? widget.total / widget.budget
+  Widget history() {
+    if (transactions.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('No demo transactions yet.'),
+      );
+    }
+    return Column(
+      children: transactions.take(8).map((t) {
+        return tile(
+          t.isExpense
+              ? Icons.shopping_bag_outlined
+              : Icons.swap_horiz,
+          t.title,
+          '${t.category} • '
+          '${t.date.day}/${t.date.month}/${t.date.year}',
+        );
+      }).toList(),
+    );
+  }
+
+  Widget homePage() {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const Text(
+          'Welcome to Cashly Campus',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: navy,
+          ),
+        ),
+        const Text('City University • Student Demo'),
+        const SizedBox(height: 22),
+        balanceCard('Available Wallet Balance', rm(wallet)),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            action(Icons.add_circle_outline, 'Top Up', topUp),
+            action(Icons.send_outlined, 'Transfer', transfer),
+            action(Icons.qr_code_scanner, 'Scan & Pay', () {
+              message('QR scanner will be added in Phase 4.');
+            }),
+            action(Icons.savings_outlined, 'Savings', () {
+              setState(() => tab = 1);
+            }),
+          ],
+        ),
+        heading('Your Money Overview'),
+        Row(
+          children: [
+            Expanded(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(15),
+                  child: Column(
+                    children: [
+                      const Text('Savings'),
+                      Text(
+                        rm(savings),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(15),
+                  child: Column(
+                    children: [
+                      const Text('Campus Coins'),
+                      Text(
+                        '$coins',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        heading('Recent Activity'),
+        history(),
+      ],
+    );
+  }
+
+  Widget financePage() {
+    final ratio = monthlyBudget > 0
+        ? monthlySpending / monthlyBudget
         : 0.0;
 
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const SectionTitle('Monthly Budget'),
-        InfoCard(
-          label: 'Your Monthly Budget',
-          value: money(widget.budget),
-          icon: Icons.account_balance_wallet,
-        ),
-        InfoCard(
-          label: 'Total Spent',
-          value: money(widget.total),
-          icon: Icons.trending_down,
-          color: Colors.orange,
-        ),
-        InfoCard(
-          label: 'Remaining Balance',
-          value: money(widget.budget - widget.total),
+        heading('Financial Management'),
+        balanceCard(
+          'Simulated Savings Balance',
+          rm(savings),
           icon: Icons.savings,
-          color: Colors.green,
         ),
-        const SizedBox(height: 20),
-        Text(
-          '${(ratio * 100).toStringAsFixed(1)}% used',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton(
+                onPressed: () => moveSavings(true),
+                child: const Text('Deposit'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => moveSavings(false),
+                child: const Text('Withdraw'),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
+        Card(
+          child: ListTile(
+            title: const Text('Illustrative Annual Interest'),
+            subtitle: const Text(
+              '3% simple interest assumption, '
+              'based on unchanged balance for 1 year.',
+            ),
+            trailing: Text(
+              rm(savings * 0.03),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        heading('Smart Expense Tracker'),
+        tile(
+          Icons.receipt_long,
+          'This Month Spending',
+          rm(monthlySpending),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Monthly Budget: ${rm(monthlyBudget)}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
         LinearProgressIndicator(
           value: ratio.clamp(0.0, 1.0),
-          minHeight: 14,
+          minHeight: 12,
           borderRadius: BorderRadius.circular(10),
           color: ratio >= 0.9
               ? Colors.red
@@ -740,60 +588,362 @@ class _BudgetPageState extends State<BudgetPage> {
                   ? Colors.orange
                   : Colors.green,
         ),
-        const SizedBox(height: 25),
-        const SectionTitle('Update Your Budget'),
-        TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(
-            decimal: true,
-          ),
-          decoration: const InputDecoration(
-            labelText: 'New Budget (RM)',
-            border: OutlineInputBorder(),
-          ),
+        const SizedBox(height: 10),
+        Text(
+          '${(ratio * 100).toStringAsFixed(1)}% of budget used',
         ),
-        const SizedBox(height: 15),
-        FilledButton(
+        if (ratio >= 0.7)
+          Text(
+            ratio >= 1
+                ? 'Budget exceeded!'
+                : 'Warning: approaching budget limit.',
+            style: const TextStyle(color: Colors.deepOrange),
+          ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
           onPressed: () {
-            final value = double.tryParse(controller.text);
-            if (value == null || !value.isFinite || value <= 0) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Please enter a valid budget'),
-                ),
-              );
-              return;
-            }
-            widget.onUpdate(value);
-            controller.clear();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Budget updated!')),
+            enterAmount(
+              title: 'Set Monthly Budget',
+              onConfirm: (amount) {
+                setState(() => monthlyBudget = amount);
+                message('Monthly budget updated.');
+              },
             );
           },
-          child: const Text('Save Budget'),
+          icon: const Icon(Icons.edit),
+          label: const Text('Edit Monthly Budget'),
+        ),
+        heading('Expense Tools'),
+        tile(
+          Icons.add,
+          'Record Manual Expense',
+          'Record an expense paid outside the wallet',
+          onTap: () {
+            enterAmount(
+              title: 'Add Manual Expense',
+              onConfirm: (amount) {
+                setState(() {
+                  record(
+                    'Manual Expense',
+                    'Others',
+                    amount,
+                    expense: true,
+                  );
+                });
+                message('Expense recorded.');
+              },
+            );
+          },
+        ),
+        tile(
+          Icons.bar_chart,
+          'Spending Report',
+          'View your recorded expenses',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ExpenseReportScreen(
+                  transactions: List.of(transactions),
+                ),
+              ),
+            );
+          },
+        ),
+        tile(
+          Icons.auto_graph,
+          'AI Spending Prediction',
+          'ML backend not connected yet',
+          onTap: () {
+            message('ML predictions will be added in Phase 8.');
+          },
         ),
       ],
     );
   }
+
+  Widget campusPage() {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        heading('City University Marketplace'),
+        const Text(
+          'Sample campus products for demonstration only.',
+        ),
+        const SizedBox(height: 18),
+        Card(
+          color: Colors.white,
+          child: ListTile(
+            leading: const Icon(
+              Icons.restaurant,
+              color: blue,
+              size: 36,
+            ),
+            title: const Text('Campus Meal'),
+            subtitle: const Text('Demo cafeteria purchase • RM 12.00'),
+            trailing: FilledButton(
+              onPressed: () => buy('Campus Meal', 12),
+              child: const Text('Buy'),
+            ),
+          ),
+        ),
+        Card(
+          color: Colors.white,
+          child: ListTile(
+            leading: const Icon(
+              Icons.checkroom,
+              color: blue,
+              size: 36,
+            ),
+            title: const Text('University T-Shirt'),
+            subtitle: const Text('Demo merchandise • RM 35.00'),
+            trailing: FilledButton(
+              onPressed: () => buy('University T-Shirt', 35),
+              child: const Text('Buy'),
+            ),
+          ),
+        ),
+        const SizedBox(height: 15),
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Earn 1 Campus Coin for every full RM5 '
+              'spent on eligible demo campus purchases.',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget rewardsPage() {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        heading('Campus Rewards'),
+        balanceCard(
+          'Available Campus Coins',
+          '$coins Coins',
+          icon: Icons.stars,
+        ),
+        const SizedBox(height: 20),
+        tile(
+          Icons.redeem,
+          'Redeem 100 Coins',
+          'Receive RM1 simulated reward credit',
+          onTap: redeemCoins,
+        ),
+        heading('Available Vouchers'),
+        Card(
+          color: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'RM5 Campus Meal Voucher',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Demonstration voucher; not valid at real shops.',
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: voucherUsed
+                      ? null
+                      : () {
+                          setState(() {
+                            if (!voucherClaimed) {
+                              voucherClaimed = true;
+                            } else {
+                              voucherUsed = true;
+                            }
+                          });
+                          message(
+                            voucherUsed
+                                ? 'Demo voucher marked as redeemed.'
+                                : 'Demo voucher claimed.',
+                          );
+                        },
+                  child: Text(
+                    voucherUsed
+                        ? 'Redeemed'
+                        : voucherClaimed
+                            ? 'Redeem Demo Voucher'
+                            : 'Claim Voucher',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget profilePage() {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        heading('Student Profile'),
+        const Center(
+          child: CircleAvatar(
+            radius: 42,
+            backgroundColor: Color(0xFFDBEAFE),
+            child: Icon(
+              Icons.person,
+              size: 46,
+              color: blue,
+            ),
+          ),
+        ),
+        const SizedBox(height: 15),
+        const Center(
+          child: Text(
+            'Demo Student',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const Center(child: Text('City University Malaysia')),
+        const SizedBox(height: 24),
+        tile(
+          Icons.badge_outlined,
+          'Student Account',
+          'Demo account • not verified',
+        ),
+        tile(
+          Icons.lock_outline,
+          'Security',
+          'Firebase Authentication will be added later',
+        ),
+        tile(
+          Icons.info_outline,
+          'About Cashly Campus',
+          'Final Year Project prototype',
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          'All money, interest, vouchers and rewards '
+          'are simulated. No real financial services '
+          'are provided by this application.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.grey),
+        ),
+      ],
+    );
+  }
+
+  
+@override
+Widget build(BuildContext context) {
+  Widget currentPage;
+
+  switch (tab) {
+    case 0:
+      currentPage = homePage();
+      break;
+    case 1:
+      currentPage = financePage();
+      break;
+    case 2:
+      currentPage = campusPage();
+      break;
+    case 3:
+      currentPage = rewardsPage();
+      break;
+    case 4:
+      currentPage = profilePage();
+      break;
+    default:
+      currentPage = homePage();
+  }
+
+  return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Cashly Campus',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: Center(
+              child: Text(
+                'DEMO',
+                style: TextStyle(
+                  color: Colors.deepOrange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: SafeArea(child: currentPage),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: tab,
+        onDestinationSelected: (index) {
+          setState(() => tab = index);
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            selectedIcon: Icon(Icons.account_balance_wallet),
+            label: 'Finance',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.storefront_outlined),
+            selectedIcon: Icon(Icons.storefront),
+            label: 'Campus',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.card_giftcard_outlined),
+            selectedIcon: Icon(Icons.card_giftcard),
+            label: 'Rewards',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class ReportsPage extends StatelessWidget {
-  final List<Expense> expenses;
+class ExpenseReportScreen extends StatelessWidget {
+  final List<DemoTransaction> transactions;
 
-  const ReportsPage({
+  const ExpenseReportScreen({
     super.key,
-    required this.expenses,
+    required this.transactions,
   });
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final current = expenses.where((e) =>
-        e.date.month == now.month &&
-        e.date.year == now.year).toList();
+    final expenses = transactions.where((t) =>
+        t.isExpense &&
+        t.date.month == now.month &&
+        t.date.year == now.year).toList();
 
     final totals = <String, double>{};
-    for (final expense in current) {
+    for (final expense in expenses) {
       totals.update(
         expense.category,
         (value) => value + expense.amount,
@@ -801,151 +951,42 @@ class ReportsPage extends StatelessWidget {
       );
     }
 
-    final total = current.fold(
+    final total = expenses.fold(
       0.0,
-      (double sum, Expense e) => sum + e.amount,
+      (sum, t) => sum + t.amount,
     );
 
-    final sorted = totals.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        const SectionTitle('Spending Reports'),
-        Text(
-          '${monthName(now.month)} ${now.year}',
-          style: const TextStyle(color: Colors.grey),
-        ),
-        const SizedBox(height: 15),
-        InfoCard(
-          label: 'Total Monthly Expenses',
-          value: money(total),
-          icon: Icons.analytics,
-        ),
-        InfoCard(
-          label: 'Transactions',
-          value: '${current.length}',
-          icon: Icons.receipt_long,
-        ),
-        const SizedBox(height: 25),
-        const SectionTitle('Spending by Category'),
-        if (sorted.isEmpty)
-          const Text(
-            'No data available. Add expenses to see your report.',
-            style: TextStyle(color: Colors.grey),
+    return Scaffold(
+      appBar: AppBar(title: const Text('Expense Report')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+            'This Month: ${rm(total)}',
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ...sorted.map((entry) {
-          final share = total > 0 ? entry.value / total : 0.0;
-          return Card(
-            color: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.all(15),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: Text(entry.key)),
-                      Text(
-                        money(entry.value),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  LinearProgressIndicator(
-                    value: share,
-                    minHeight: 8,
-                    borderRadius: BorderRadius.circular(8),
-                    color: royalBlue,
-                    backgroundColor: Colors.blue.shade50,
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    '${(share * 100).toStringAsFixed(1)}%',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ],
+          const SizedBox(height: 20),
+          if (expenses.isEmpty)
+            const Text('No expenses recorded this month.'),
+          ...totals.entries.map(
+            (entry) => Card(
+              child: ListTile(
+                title: Text(entry.key),
+                trailing: Text(rm(entry.value)),
               ),
             ),
-          );
-        }),
-      ],
-    );
-  }
-}
-
-class PredictionPage extends StatelessWidget {
-  const PredictionPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        const SectionTitle('AI Spending Prediction'),
-        const SizedBox(height: 15),
-        Card(
-          color: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.all(25),
-            child: Column(
-              children: [
-                const Icon(
-                  Icons.auto_graph,
-                  size: 75,
-                  color: royalBlue,
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Next Month Prediction',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                const Text(
-                  'Prediction not available yet',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.orange,
-                  ),
-                ),
-                const SizedBox(height: 15),
-                const Text(
-                  'The machine learning backend is not '
-                  'connected yet. Continue recording your '
-                  'expenses. Predictions will be available '
-                  'after the model is implemented and '
-                  'sufficient historical data is collected.',
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
           ),
-        ),
-        const SizedBox(height: 25),
-        const SectionTitle('Planned Prediction Models'),
-        const ListTile(
-          leading: Icon(Icons.show_chart, color: royalBlue),
-          title: Text('Moving Average'),
-          subtitle: Text('Baseline forecasting method'),
-        ),
-        const ListTile(
-          leading: Icon(Icons.timeline, color: royalBlue),
-          title: Text('Linear Regression'),
-          subtitle: Text('Machine learning model'),
-        ),
-        const ListTile(
-          leading: Icon(Icons.account_tree, color: royalBlue),
-          title: Text('Random Forest Regression'),
-          subtitle: Text('Machine learning model'),
-        ),
-      ],
+          const SizedBox(height: 20),
+          const Text(
+            'This is a basic Phase 1 report. '
+            'Full charts, date filters and ML '
+            'predictions will be added later.',
+          ),
+        ],
+      ),
     );
   }
 }
