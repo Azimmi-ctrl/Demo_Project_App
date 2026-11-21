@@ -46,3 +46,16 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Python virtual environment and cache
+backend/.venv/
+backend/__pycache__/
+backend/*.pyc
+
+# Backend secrets
+backend/.env
+backend/serviceAccountKey.json
+backend/*service-account*.json
+
+# Local diagnostic logs
+flutter_run_log.txt

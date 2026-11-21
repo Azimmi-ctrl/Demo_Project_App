@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "492677664472",
+    "project_id": "cashly-campus-fyp",
+    "storage_bucket": "cashly-campus-fyp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:492677664472:android:0f95be0f7c239cc2a151ad",
+        "android_client_info": {
+          "package_name": "com.example.demo_project_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDjgCpshcWhxGuWVkS-plCvZxFDP62G22I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
